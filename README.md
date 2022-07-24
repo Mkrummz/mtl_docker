@@ -107,7 +107,7 @@ kubectl port-forward -n ${namespace} <_pod_name_> 8080:8080
 
 While that is running open a new terminal and run the curl commands to populate the store front
 ```bash
-cd mtl_demo
+cd mtl_docker
 sh ./load_store.sh
 ```
 Now kill the port forwarding process on the other temrinal (control + c) we no longer need that
