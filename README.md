@@ -97,7 +97,9 @@ If yes, the set up a port-forwarder for the products container
 ```bash
 #get container name, choose one that start with productsXXXX
 kubectl get pod -n ${namespace}
+```
 
+```bash
 #input it in here
 #example kubectl port-forward -n ${namespace} products-7cf9db6b6-splt5 8080:8080
 kubectl port-forward -n ${namespace} <_pod_name_> 8080:8080
