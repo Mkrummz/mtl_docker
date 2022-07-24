@@ -7,7 +7,7 @@ This workshop will walk you through how to collect and visualize metrics, logs a
 ## Prerequisites
 [Sign up for our free Grafana Cloud Account](https://grafana.com/)
 
-[GCP Cloud Account](https://cloud.google.com)
+[GCP Cloud](https://cloud.google.com)
 
 Optional: Download a Text Editor (ex: [Visual Studio Code](https://code.visualstudio.com/download))
 
@@ -37,7 +37,10 @@ The application consists of 5 microservices:
     - The consumer- logs the message
 
 ## Part 0: Setup Prior to Workshop
-We will be using [Cloud Shell](https://cloud.google.com/shell) to run this workshop. Cloud Shell is a GCP offering and allows you to manage your cloud resources via terminal. As well it comes preloaded with the utilites you will be using today: kubectl, curl, and envsubst
+We will be using [Cloud Shell](https://cloud.google.com/shell) to run this workshop. Cloud Shell is a GCP offering and allows you to manage your cloud resources via terminal. As well it comes preloaded with the utilites we will be using today: 
+- kubectl
+- curl
+- envsubst
 
 ### Setting up your IDE 
 
@@ -45,29 +48,31 @@ You will start off by opening up Cloud Shell. This can take a minute depending o
 
 Once it is open you will run the following commands to pull the repo from GitHub:
 
-***Ctrl + v does not work in cloud shell. You must use Ctrl + Shift + v or right click -> paste
 ```bash
 git clone https://github.com/Mkrummz/mtl_demo.git
+git pull origin kubernetes
 cd mtl_demo
 ```
 Set the Env Variables
 
+Select the [geographic deployment location](https://cloud.google.com/compute/docs/regions-zones) (ex: europe-north1-a, us-central1-a)
 ```bash
-#select the geographic deployment location
-#https://cloud.google.com/compute/docs/regions-zones (ex: europe-north1-a, us-central1-a)
 zone=us-central1-c
+```
 
-#give the cluster a name
+Give the cluster a name
+```bash
 clustername=web-shop-app
+```
 
-#define the Container Namespace.
-#DO NOT MODIFY unless you also modify web-shop-app.yaml
+Define the Container Namespace. **DO NOT MODIFY unless you also modify web-shop-app.yaml**
+```bash
 namespace=web-shop-app
+```
 
-#input your first name (or initals)
+Input your first name (or initals) and the date you expect to delete the cluster on (internal policy)
+```bash
 owner=mmk
-
-#the date you expect to delete the cluster by
 deletedate=07-29-2022
 ```
 
@@ -75,12 +80,9 @@ deletedate=07-29-2022
 
 Spin up a GKE cluster
 ```bash
+gcloud container clusters list
 gcloud container clusters create --zone ${zone} ${clustername} --labels owner=${owner},lifetime=${deletedate}
-```
-
-Get Cluster Credentials
-```bash
-gcloud container clusters get-credentials ${clustername} --zone ${zone}
+gcloud container clusters get-credentials ${clustername}
 ```
 
 Deploy App
@@ -88,24 +90,23 @@ Deploy App
 kubectl apply -f web-shop-app.yaml
 ```
 
-Check to see if all containers are all in the ready state
+Check to see if all containers are all in the running state
 ```bash
-kubectl get deployments --all-namespaces
+
 ```
 
 If yes, the set up a port-forwarder for the products container
 ```bash
 #get container name, choose one that start with productsXXXX
-kubectl get pod -n ${namespace}
+kubectl get nodes
 
 #input it in here
 #example kubectl port-forward -n ${namespace} products-7cf9db6b6-splt5 8080:8080
-kubectl port-forward -n ${namespace} <_pod_name_> 8080:8080
+kubectl port-forward -n ${namespace} <pod_name> 8080:8080
 ```
 
 While that is running open a new terminal and run the curl commands to populate the store front
 ```bash
-cd mtl_demo
 sh ./load_store.sh
 ```
 Now kill the port forwarding process on the other temrinal (control + c) we no longer need that
@@ -122,11 +123,11 @@ Next grab the website URL
 ```bash
 kubectl get -n ${namespace} service web-shop
 ```
-Naviagate to the URL: http://<_hostname or public ip_>:3389/shop?name=User
+Naviagate to the URL: http://<hostname or public ip>:3389/shop?name=User
 
 Congrats you have completed the workshop setup steps!
 
-## Part 1: Instrumentation and Collection of Metrics Data and Logs
+## Part 1: Instrumentation and Collection of Metrics Data
 You will start off by instrumenting our application. Using the architecture diagram from above you will leverage the cloud integration and connections to quickly orchestrate the collection of the telemetry data.
 
 Once instrumented, you will be sending this telegemery data to [Grafana Cloud](https://grafana.com/products/cloud/?pg=blog&plcmt=body-txt) (fully-managed composable observability platform) via the Grafana Agent (all-in-one agent for collecting metrics, logs, and traces).
@@ -143,12 +144,23 @@ You still have full control over how the exporter is configured in the agent con
 
 The metrics_config block is used to define a collection of metrics instances. Each instance defines a collection of Prometheus-compatible scrape_configs and remote_write rules.
 
-Logs follow the same pattern.
+```yml
+Metrics:
+ wal_directory: '/var/lib/grafana-agent'
+ global:
+   scrape_interval: 15s
+   remote_write:
+     - url: <Prometheus compatible remote write's API>
+       basic_auth:
+         username: <user name or instance ID if using Grafana Cloud>
+         password: <password or API Key if using Grafana Cloud>
+```
 
-To implement this we will go to Grafana Cloud and open up the integrations section and search for Kubernetes. Then we will follow the guide to set it up.
+## Part 2: Instrumentation and Collection of Logs Data
 
 
-## Part 2: Instrumentation and Collection of Trace Data
+
+## Part 3: Instrumentation and Collection of Log Data
 Traces subsystem allows you to collect spans to send to Grafana Tempo. Grafana Agent collects traces and forwards them to Tempo using its traces subsystem. This is done using the upstream [OpenTelemetry Collector](https://github.com/open-telemetry/opentelemetry-collector). Grafana Agent can ingest OpenTelemetry, OpenCensus, Jaeger, Zipkin, or Kafka spans. 
 
 ```yml
@@ -313,16 +325,11 @@ We got these values from: line 29 of shopping-cart/wsgi.py and line 29 of web-sh
 ![Alt text](images/shopping-cart_traces.png)
 
 ## Go to Explore 
-CPU Usage by Service
-sum(node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate{cluster="cloud", namespace="web-shop-app"} * on(namespace,pod)   group_left(workload, workload_type) namespace_workload_pod:kube_pod_owner:relabel{cluster="cloud", namespace="web-shop-app"} ) by (workload, workload_type)
-
-then you can add it to a dashboard
-
-then click the panel and show some of the options for customization such as changing the legend 
+Type in xyz queries to make sure everything is working as expected
 
 ## Adding Additional Dashboards
 
-### User Experience Dashboards
+### What about Metrics Showing User Experience
 We can use **Synthetic Monitoring** for this. The synthetic monitoring module in Grafana Cloud is a black box monitoring solution that allows you to extract information about the behavior of applications and services from an outside perspective. You can run remote tests on these applications or services from different locations around the world in such a way that you can identify their availability.  In each check, the metrics and logs that are collected are saved within the metrics and logs backend of the stack itself. Meaning you can access them directly via a Prometheus query with PromQL or a Loki query with LogQL.
 
 You can do checks such as Ping via ICMP, HTTP and HTTPS websites, DNS name resolution check, TCP connections, and recently  we added a new type of check, traceroute. Traceroute checks show routes through network to a target. Check out packet loss, hop distance, and timing from any synthetic monitoring probe.
@@ -332,33 +339,18 @@ To set this up:
 2. click on synthetic monitoring on the left hand side (world icon)
 3. click on **Checks** in the naviagation bar
 4. click add new check
-5. Set **Check type** to **HTTP**, give the **Job a Name**, Put <gke_public_ip>:3389/shop?name=User as the **target**, select any **probe locations** you'd like (I'd recommend doing >3), and select **Save**.
-   - For a more interesting probe set up another one with <gke_public_ip>:3389/cart?name=Jim&checkout=true
+5. Set **Check type** to **HTTP**, give the **Job a Name**, Put <eks_public_ip>:3389/shop?name=User as the **target**, select any **probe locations** you'd like (I'd recommend doing >3), and select **Save**.
+   - For a more interesting probe set up another one with <eks_public_ip>:3389/cart?name=Jim&checkout=true
    - If you want to do a traceroute use grafanalivedemo.com
 6. Then click **View Dashboard** (I'd recommend having one running already and after walking through the setup steps opening that one so its populated with data)
 
 ### Import Additional Example Dashboard in the Dashboard Folder
 
-From there you can do so much: 
-- https://play.grafana.org/d/T512JVH7z/loki-nginx-service-mesh-json-version?orgId=1 - all the stuff you can do with just logs 
-- https://se-demo.grafana.net/d/Oc_5E1snz/web-app-observability-mk?orgId=1 - templatized data across web apps or even deployments
-- https://sedemo.grafana.net/d/lB_AxvX7k/k6-integration-dashboard-mk?orgId=1&from=1651574259000&to=1651574667000 - data about your load testing
-- https://se-demo.grafana.net/d/RP60OMfZf/servicenow-incidents?orgId=1 - tie in data from your ticketing system 
-- https://se-demo.grafana.net/d/0qrJzvL7z/0-ddr-elk-metrics-logs-tracces?orgId=1 - big tent philosphy 
-- https://sedemo.grafana.net/d/8BuVGzTMk/k8s-slos-with-error-budget?orgId=1&var-datasource=grafanacloud-sedemo-prom&var-cluster=&var-- instance=All&from=now-3h&to=now - use tools such as sloth slo
-- https://se-demo.grafana.net/d/KZI2_9s7k/devops-scorecard?orgId=1 - devops score cards, send them out as pdfs in weekly reports
-- https://se-demo.grafana.net/d/L-XLdvY7k/0-ddr-ml?orgId=1 - ml
+SLO - Dashboard
 
-all of this in one place as your first pane of glass
+General Observ Dashboard
 
 Navigation Dashboard
-
-## Spin Down the Env
-1. Delete the probs you created in Synthetic Monitoring
-2. To delete your GKE cluster run:
-    ```bash
-    gcloud container clusters delete ${clustername} --zone=${zone}
-    ```
 
 ## Acknowledgements
 

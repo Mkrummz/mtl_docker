@@ -1,0 +1,1 @@
+docker run --rm -i grafana/k6 run - <load_testing/scripts/generate_traffic.js
