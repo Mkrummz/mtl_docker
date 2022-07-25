@@ -48,7 +48,7 @@ Once it is open you will run the following commands to pull the repo from GitHub
 ***Ctrl + v does not work in cloud shell. You must use Ctrl + Shift + v or right click -> paste
 ```bash
 git clone https://github.com/Mkrummz/mtl_docker.git
-cd mtl_demo
+cd mtl_docker
 ```
 Set the Env Variables
 
