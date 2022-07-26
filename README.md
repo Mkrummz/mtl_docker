@@ -128,6 +128,42 @@ Naviagate to the URL: http://<_hostname or public ip_>:3389/shop?name=User
 
 Congrats you have completed the workshop setup steps!
 
+#### Prework Data Source Configuration
+
+name =  ``` traceid ```
+
+regex = ``` .*?trace_*[I|i][d|D]=(\w+).* ```
+
+internal link = tracing
+
+![Alt text](images/logs.png)
+
+We got these values from: line 49 of shopping-cart/wsgi.py and line 48 of web-shop/wsgi.py
+
+![Alt text](images/shopping-cart_logs.png)
+
+### Traces to Logs correlation setup:
+Loki can recieve a set of labels along with log line. These labels are used to index log entries and query. By default the Docker driver will add:
+- filename: where the log is written to on disk
+- host: the hostname where the log has been generated
+- swarm_stack, swarm_service: added when deploying from Docker Swarm
+- compose_project, compose_service: added when deploying with Docker Compose
+
+#### Data Source Configuration
+Data source =  ``` Loki ```
+
+Tags = ```bash service.name ``` = ``` compose_service ```
+
+Toggle on **Map tag names** and **Enable Node Graph**
+
+![Alt text](images/traces.png)
+
+We got these values from: line 29 of shopping-cart/wsgi.py and line 29 of web-shop/wsgi.py
+
+![Alt text](images/shopping-cart_traces.png)
+
+***Do one with prometheus as well with a 15s scrape interval
+
 ## Part 1
 Follow the Kubernetes Monitoring steps in the Integrations and Connections portion. Do it in an account you arent currently sending k8 data to. If you turn off sending k8 data it will revert back to like you never used it!
 
