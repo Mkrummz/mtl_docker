@@ -128,7 +128,7 @@ Naviagate to the URL: http://<_hostname or public ip_>:3389/shop?name=User
 
 Congrats you have completed the workshop setup steps!
 
-#### Prework Data Source Configuration
+## Prework Data Source Configuration
 
 name =  ``` traceid ```
 
